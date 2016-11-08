@@ -91,6 +91,7 @@ class Solver {
     private ArrayList<Atom> list = new ArrayList<>();
     private double radiusSum = 0;
     private double energySum = 0;
+    private double energySqrSum = 0;
     private double energyNorm = 0;
 
     Solver(PrintWriter writer) {
@@ -120,11 +121,19 @@ class Solver {
         this.energySum = energySum;
     }
 
-    public double getEnergyNorm() {
+    double getEnergySqrSum() {
+        return energySqrSum;
+    }
+
+    void setEnergySqrSum(double energySqrSum) {
+        this.energySqrSum = energySqrSum;
+    }
+
+    double getEnergyNorm() {
         return energyNorm;
     }
 
-    public void setEnergyNorm(double energyNorm) {
+    void setEnergyNorm(double energyNorm) {
         this.energyNorm = energyNorm;
     }
 
@@ -135,9 +144,10 @@ class Solver {
     void configure(int x, int y, int len, Molecule molecule, double T) {
         if (len == 0) {
 //            writer.write(molecule.getMoleculeString());
-            radiusSum += molecule.getRadiusSqr();
             double dE = molecule.getEnergy(10, 1);
+            radiusSum += molecule.getRadiusSqr() * Math.exp(-dE / T);
             energySum += dE * Math.exp(-dE / T);
+            energySqrSum += dE * dE * Math.exp(-dE / T);
             energyNorm += Math.exp(-dE / T);
         } else {
             list.forEach((dS) -> configure(x + dS.getX(), y + dS.getY(), len - 1, new Molecule(new Atom(x + dS.getX(), y + dS.getY()), molecule), T));
@@ -155,10 +165,14 @@ public class MoleculeQuad {
             for (int i = 1; i <= 50; ++i) {
                 solver.setRadiusSum(0);
                 solver.setEnergySum(0);
+                solver.setEnergySqrSum(0);
                 solver.setEnergyNorm(0);
                 solver.configure(0, 0, 10, i);
-//                System.out.println(solver.getRadiusSum() / Math.pow(4, i));
-                System.out.println(solver.getEnergySum() / solver.getEnergyNorm());
+                double T = i;
+                double mE2 = Math.pow(solver.getEnergySum() / solver.getEnergyNorm(), 2);
+                double E2m = solver.getEnergySqrSum() / solver.getEnergyNorm();
+                double mR2 = solver.getRadiusSum() / solver.getEnergyNorm();
+                writer.printf("%f,%f,%f,%f\n", T, mE2, E2m, mR2);
             }
             writer.close();
         } catch (FileNotFoundException | UnsupportedEncodingException e) {
